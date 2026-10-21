@@ -1,137 +1,49 @@
-name: Compile Portable Windows .EXE
-
-on:
-push:
-branches: [ main, master ]
-workflow_dispatch: # Allows you to click "Run workflow" manually in GitHub!
-
-jobs:
-build-windows-exe:
-runs-on: windows-latest
-steps:
-- name: Checkout repository
-uses: actions/checkout@v4
-
-  - name: Install Rust Stable
-    uses: dtolnay/rust-toolchain@stable
-
-  - name: Rust Cache (Speeds up builds)
-    uses: Swatinem/rust-cache@v2
-    with:
-      workspaces: src-tauri
-
-  - name: Auto-Generate Tauri & Win32 Backend Files
-    shell: pwsh
-    run: |
-      New-Item -ItemType Directory -Force -Path "src" | Out-Null
-      New-Item -ItemType Directory -Force -Path "src-tauri/src" | Out-Null
-      New-Item -ItemType Directory -Force -Path "src-tauri/icons" | Out-Null
-
-      # If index.html was uploaded in the root folder instead of src/, copy it into src/
-      if ((Test-Path "index.html") -and -not (Test-Path "src/index.html")) {
-        Copy-Item "index.html" "src/index.html"
-      }
-
-      # Create a valid minimal 32x32 RGBA icon.ico & icon.png so tauri-build succeeds cleanly
-      Add-Type -AssemblyName System.Drawing
-      $bmp = New-Object System.Drawing.Bitmap(32, 32, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)$g = [System.Drawing.Graphics]::FromImage($bmp)$g.Clear([System.Drawing.Color]::FromArgb(255, 249, 115, 22))
-      $g.Dispose()$bmp.Save("src-tauri/icons/icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
-      $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())$fs = New-Object System.IO.FileStream("src-tauri/icons/icon.ico", [System.IO.FileMode]::Create)
-      $icon.Save($fs)$fs.Close()
-
-      # Write Cargo.toml
-      @'
-      [package]
-      name = "magic-pointer"
-      version = "1.0.0"
-      edition = "2021"
-
-      [build-dependencies]
-      tauri-build = { version = "2", features = [] }
-
-      [dependencies]
-      tauri = { version = "2", features = [] }
-      serde = { version = "1.0", features = ["derive"] }
-      serde_json = "1.0"
-      windows = { version = "0.58", features = [
-        "Win32_Foundation",
-        "Win32_UI_WindowsAndMessaging"
-      ] }
-      '@ | Set-Content -Path "src-tauri/Cargo.toml" -Encoding UTF8
-
-      # Write build.rs
-      @'
-      fn main() {
-          tauri_build::build()
-      }
-      '@ | Set-Content -Path "src-tauri/build.rs" -Encoding UTF8
-
-      # Write main.rs
-      @'
-      #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
-      use windows::Win32::Foundation::POINT;
-      use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-
-      #[tauri::command]
-      fn inspect_cursor_target() -> Result<serde_json::Value, String> {
-          unsafe {
-              let mut pt = POINT::default();
-              let _ = GetCursorPos(&mut pt);
-              Ok(serde_json::json!({
-                  "target_type": "folder",
-                  "name": "Downloads",
-                  "full_path": r"C:\Users\brian\Downloads",
-                  "cursor_x": pt.x,
-                  "cursor_y": pt.y
-              }))
-          }
-      }
-
-      fn main() {
-          tauri::Builder::default()
-              .invoke_handler(tauri::generate_handler![inspect_cursor_target])
-              .run(tauri::generate_context!())
-              .expect("error while running magic pointer");
-      }
-      '@ | Set-Content -Path "src-tauri/src/main.rs" -Encoding UTF8
-
-      # Write tauri.conf.json
-      @'
-      {
-        "$schema": "https://schema.tauri.app/config/2",
-        "productName": "magic-pointer",
-        "version": "1.0.0",
-        "identifier": "com.magicpointer.app",
-        "build": {
-          "frontendDist": "../src"
-        },
-        "app": {
-          "withGlobalTauri": true,
-          "windows": [
-            {
-              "title": "Magic Pointer",
-              "width": 880,
-              "height": 620,
-              "decorations": false,
-              "transparent": true,
-              "visible": true,
-              "alwaysOnTop": true
-            }
-          ],
-          "security": {
-            "csp": null
-          }
-        }
-      }
-      '@ | Set-Content -Path "src-tauri/tauri.conf.json" -Encoding UTF8
-
-  - name: Compile Portable EXE
-    working-directory: ./src-tauri
-    run: cargo build --release
-
-  - name: Upload Portable .EXE for Download
-    uses: actions/upload-artifact@v4
-    with:
-      name: Magic-Pointer-Portable-EXE
-      path: src-tauri/target/release/magic-pointer.exe
+{
+"name": "Compile Portable Windows .EXE",
+"on": {
+"push": {
+"branches": ["main", "master"]
+},
+"workflow_dispatch": {}
+},
+"jobs": {
+"build-windows-exe": {
+"runs-on": "windows-latest",
+"steps": [
+{
+"name": "Checkout repository",
+"uses": "actions/checkout@v4"
+},
+{
+"name": "Install Rust Stable",
+"uses": "dtolnay/rust-toolchain@stable"
+},
+{
+"name": "Auto-Generate Tauri and Win32 Backend Files",
+"shell": "pwsh",
+"run": "New-Item -ItemType Directory -Force -Path 'src' | Out-Null; New-Item -ItemType Directory -Force -Path 'src-tauri/src' | Out-Null; New-Item -ItemType Directory -Force -Path 'src-tauri/icons' | Out-Null; if ((Test-Path 'index.html') -and -not (Test-Path 'src/index.html')) { Copy-Item 'index.html' 'src/index.html' }; if (-not (Test-Path 'src/index.html')) { 'Magic Pointer Ready' | Set-Content -Path 'src/index.html' -Encoding UTF8 }; Add-Type -AssemblyName System.Drawing; $bmp = New-Object System.Drawing.Bitmap(32, 32, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb);$g = [System.Drawing.Graphics]::FromImage($bmp);$g.Clear([System.Drawing.Color]::FromArgb(255, 249, 115, 22)); $g.Dispose();$bmp.Save('src-tauri/icons/icon.png', [System.Drawing.Imaging.ImageFormat]::Png); $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon()); $fs = New-Object System.IO.FileStream('src-tauri/icons/icon.ico', [System.IO.FileMode]::Create);$icon.Save($fs);$fs.Close(); $cargoToml = @('[package]', 'name = "magic-pointer"', 'version = "1.0.0"', 'edition = "2021"', '', '[build-dependencies]', 'tauri-build = { version = "2", features = [] }', '', '[dependencies]', 'tauri = { version = "2", features = [] }', 'serde = { version = "1.0", features = ["derive"] }', 'serde_json = "1.0"', 'windows = { version = "0.58", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }') -join "n\"; Set-Content -Path 'src-tauri/Cargo.toml' -Value $cargoToml -Encoding UTF8; Set-Content -Path 'src-tauri/build.rs' -Value 'fn main() { tauri_build::build() }' -Encoding UTF8; $mainRs = @('#![cfg_attr(not(debug_assertions), windows_subsystem = \"windows\")]', 'use windows::Win32::Foundation::POINT;', 'use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;', '', '#[tauri::command]', 'fn inspect_cursor_target() -> Result<serde_json::Value, String> {', '    unsafe {', '        let mut pt = POINT::default();', '        let _ = GetCursorPos(&mut pt);', '        Ok(serde_json::json!({', '            \"target_type\": \"folder\",', '            \"name\": \"Downloads\",', '            \"full_path\": \"C:\\\\Users\\\\brian\\\\Downloads\",', '            \"cursor_x\": pt.x,', '            \"cursor_y\": pt.y', '        }))', '    }', '}', '', 'fn main() {', '    tauri::Builder::default()', '        .invoke_handler(tauri::generate_handler![inspect_cursor_target])', '        .run(tauri::generate_context!())', '        .expect(\"error while running magic pointer\");', '}') -join \"n"; Set-Content -Path 'src-tauri/src/main.rs' -Value $mainRs -Encoding UTF8; $tauriConf = @('{', '  "$schema": "https://schema.tauri.app/config/2",', '  "productName": "magic-pointer",', '  "version": "1.0.0",', '  "identifier": "com.magicpointer.app",', '  "build": {', '    "frontendDist": "../src"', '  },', '  "app": {', '    "withGlobalTauri": true,', '    "windows": [', '      {', '        "title": "Magic Pointer",', '        "width": 880,', '        "height": 620,', '        "decorations": false,', '        "transparent": true,', '        "visible": true,', '        "alwaysOnTop": true', '      }', '    ],', '    "security": {', '      "csp": null', '    }', '  }', '}') -join "`n"; Set-Content -Path 'src-tauri/tauri.conf.json' -Value $tauriConf -Encoding UTF8"
+},
+{
+"name": "Rust Cache",
+"uses": "Swatinem/rust-cache@v2",
+"with": {
+"workspaces": "src-tauri"
+}
+},
+{
+"name": "Compile Portable EXE",
+"working-directory": "./src-tauri",
+"run": "cargo build --release"
+},
+{
+"name": "Upload Portable .EXE for Download",
+"uses": "actions/upload-artifact@v4",
+"with": {
+"name": "Magic-Pointer-Portable-EXE",
+"path": "src-tauri/target/release/magic-pointer.exe"
+}
+}
+]
+}
+}
+}
