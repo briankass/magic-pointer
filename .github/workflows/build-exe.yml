@@ -1,29 +1,29 @@
 {
-name: Compile Portable Windows EXE,
-on: push,
-jobs: {
-build: {
-runs-on: windows-latest,
-steps: [
+"name": "Compile Portable Windows EXE",
+"on": "push",
+"jobs": {
+"build": {
+"runs-on": "windows-latest",
+"steps": [
 {
-name: Checkout repository,
-uses: actions/checkout@v4
+"name": "Checkout repository",
+"uses": "actions/checkout@v4"
 },
 {
-name: Install Rust Stable,
-uses: dtolnay/rust-toolchain@stable
+"name": "Install Rust Stable",
+"uses": "dtolnay/rust-toolchain@stable"
 },
 {
-name: Build Portable EXE,
-shell: pwsh,
-run: ./build.ps1
+"name": "Build Standalone WebView2 EXE",
+"shell": "pwsh",
+"run": "New-Item -ItemType Directory -Force -Path src | Out-Null; if ((Test-Path index.html) -and -not (Test-Path src/index.html)) { Copy-Item index.html src/index.html }; if (-not (Test-Path src/index.html)) { Set-Content -Path src/index.html -Value 'Magic Pointer' }; $q = [char]34; $lb = [char]91; $rb = [char]93; $toml = @($lb + 'package' + $rb, 'name = ' +$q + 'magic-pointer' + $q, 'version = ' +$q + '1.0.0' + $q, 'edition = ' +$q + '2021' + $q,$lb + 'dependencies' + $rb, 'tao = ' +$q + '0.30' + $q, 'wry = ' +$q + '0.47' + $q); Set-Content -Path Cargo.toml -Value$toml; $rs = @('#!' + $lb + 'windows_subsystem = ' + $q + 'windows' +$q + $rb, 'use tao::{event::{Event, WindowEvent}, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder, dpi::LogicalSize};', 'use wry::WebViewBuilder;', 'fn main() {', '  let event_loop = EventLoop::new();', '  let window = WindowBuilder::new().with_title(' +$q + 'Magic Pointer' + $q + ').with_inner_size(LogicalSize::new(880.0, 620.0)).with_decorations(false).with_transparent(true).with_always_on_top(true).build(&event_loop).unwrap();', '  let html = include_str!(' +$q + 'index.html' + $q + ');', '  let _webview = WebViewBuilder::new().with_transparent(true).with_html(html).build(&window).unwrap();', '  event_loop.run(move \vert{}event, _, control_flow\vert{} {', '    *control_flow = ControlFlow::Wait;', '    if let Event::WindowEvent { event: WindowEvent::CloseRequested, .. } = event { *control_flow = ControlFlow::Exit; }', '  });', '}'); Set-Content -Path src/main.rs -Value$rs; cargo build --release"
 },
 {
-name: Upload Portable EXE,
-uses: actions/upload-artifact@v4,
-with: {
-name: Magic-Pointer-Portable-EXE,
-path: src-tauri/target/release/magic-pointer.exe
+"name": "Upload Portable EXE",
+"uses": "actions/upload-artifact@v4",
+"with": {
+"name": "Magic-Pointer-Portable-EXE",
+"path": "target/release/magic-pointer.exe"
 }
 }
 ]
